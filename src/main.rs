@@ -1,4 +1,4 @@
-mod logic;
+mod setter;
 
 fn main() {
 }
