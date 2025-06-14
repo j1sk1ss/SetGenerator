@@ -1,6 +1,5 @@
 pub mod series;
 pub mod table;
-pub mod prep;
 
 const EPSILON: f64 = 1e-9;
 fn fequal(f: f64, s: f64) -> bool {
