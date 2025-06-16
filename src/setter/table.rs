@@ -1,5 +1,6 @@
 use super::fequal;
 use super::series;
+use super::series::Series;
 
 use std::fs::File;
 use std::io::prelude::*;
@@ -10,14 +11,20 @@ pub struct Table {
 }
 
 impl Table {
-    pub fn new(series: Vec<series::Series>) -> Self {
-        return Self {
+    pub fn new(series: Vec<series::Series>) -> Table {
+        return Table {
             body: series
         }
     }
 
-    pub fn default() -> Self {
-        return Self {
+    pub fn empty() -> Table {
+        return Table {
+            body: vec![]
+        }
+    }
+
+    pub fn default() -> Table {
+        return Table {
             body: vec![
                 series::Series::from_vec(0.001, vec![1., 1.001, 1.002, 1.003, 1.004, 1.005, 1.006, 1.007, 1.008, 1.009, 1.01]),
                 series::Series::from_vec(0.005, vec![1., 1.005, 1.01]),
@@ -89,51 +96,50 @@ impl Table {
             return false;
         }
     
-        self.body.retain(|series| {
+        self.body.retain(|series: &Series| {
             !series.series.iter().any(|&v| v < min || v > max)
         });
     
         return true;
-    }    
+    }
 
-    pub fn print(&mut self, table_name: &str, highlight: usize) -> bool {
+    pub fn print(&self, highlight: usize, prnt: &dyn Fn(&str, i32)) -> bool {
         if self.body.is_empty() {
-            eprintln!("Table is empty.");
-            return true;
+            return false;
         }
     
-        println!("+------------------------------------------------+");
-        println!("\t{}\t", table_name);
-        println!("+------+---------+-------------------------------+");
-        println!("| Num  | Grad-on |            Values             |");
-        println!("+------+---------+-------------------------------+");
+        let mut y = 3;
+        prnt("+------+---------+-------------------------------+", 0);
+        prnt("| Num  | Grad-on |            Values             |", 1);
+        prnt("+------+---------+-------------------------------+", 2);
     
         for (i, s) in self.body.iter().enumerate() {
             if s.series.is_empty() {
                 continue;
             }
     
+            let mut line = String::new();
             if i != highlight {
-                print!("| {:4} | {:7.3} |", i, s.gradation);
-            }
+                line += &format!("| {:4} | {:7.3} |", i, s.gradation);
+            } 
             else {
-                print!("> {:4} | {:7.3} |", i, s.gradation);
+                line += &format!("> {:4} | {:7.3} |", i, s.gradation);
             }
     
             for (j, val) in s.series.iter().enumerate() {
                 if j > 0 {
-                    print!(" ");
+                    line += " ";
                 }
-
-                print!("{:.3}", val);
+                line += &format!("{:.3}", val);
             }
     
-            println!();
+            prnt(&line, y);
+            y += 1;
         }
     
-        println!("+------+---------+-------------------------------+");
+        prnt("+------+---------+-------------------------------+", y);
         return true;
-    }    
+    }     
 
     pub fn save(&self, fp: &mut File) -> std::io::Result<()> {
         for series in &self.body {
