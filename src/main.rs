@@ -1,67 +1,129 @@
-mod gui;
+use eframe::{egui, App, CreationContext, Frame};
 mod setter;
 
-fn main() {
-    let screen: gui::Screen = gui::Screen::new();
-    screen.print_center("WELCOME", 0);
-    screen.print_center("PRESS <ENTER> TO CONTINUE!", 1);
+struct SetterApp {
+    line: usize,
+    selected: Vec<setter::series::Series>,
+    src_table: setter::table::Table,
+    mode: AppMode,
+    result_table: Option<setter::table::Table>,
+    sets_table: Option<setter::table::Table>,
+}
 
-    gui::Screen::wait_key('\n');
-    gui::Screen::cls();
+#[derive(PartialEq)]
+enum AppMode {
+    Welcome,
+    Selection,
+    Result,
+    Final,
+}
 
-    gui::Screen::cls();
-
-    let mut line: i32 = 0;
-    let mut cons_series: Vec<setter::series::Series> = vec![];
-    let src_tb: setter::table::Table = setter::table::Table::default();
-    src_tb.print(0, &|text, y| screen.print_ltop(text, y));
-
-    screen.print_bottom("[w] - Up, [s] - Down, [space] - Select gradation", 2);
-    screen.print_bottom("[[] - Set min, []] - Set max", 1);
-    gui::Screen::refresh_gui();
-
-    loop {
-        gui::Screen::cls();
-        src_tb.print(line as usize, &|text, y| screen.print_ltop(text, y));
-        gui::Screen::refresh_gui();
-        match gui::Screen::wait_any_key() {
-            119 => {  // 'w'
-                line = std::cmp::max(line - 1, 0);
-            }
-            115 => {  // 's'
-                line = std::cmp::min(line + 1, (src_tb.body.len() - 1) as i32);
-            }
-            32 => {   // Space
-                cons_series.push(src_tb.body[line as usize].clone());
-            }
-            91 => {   // '['
-            }
-            93 => {   // ']'
-            }
-            _ => {
-                break;
-            }
+impl Default for SetterApp {
+    fn default() -> Self {
+        Self {
+            line: 0,
+            selected: vec![],
+            src_table: setter::table::Table::default(),
+            mode: AppMode::Welcome,
+            result_table: None,
+            sets_table: None,
         }
     }
+}
 
-    gui::Screen::cls();
+impl App for SetterApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            match self.mode {
+                AppMode::Welcome => {
+                    ui.vertical_centered(|ui| {
+                        ui.heading("Welcome!");
+                        ui.label("Press below button to continue...");
+                        if ui.button("Continue").clicked() {
+                            self.mode = AppMode::Selection;
+                        }
+                    });
+                }
 
-    let mut cons_tb: setter::table::Table = setter::generate_series(&cons_series).unwrap_or(setter::table::Table::empty());
-    cons_tb.to_uniq();
+                AppMode::Selection => {
+                    ui.heading("Select Gradations");
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for (i, item) in self.src_table.body.iter().enumerate() {
+                            let is_selected = self.selected.iter().any(|s| s.equal(item));
 
-    screen.print_top("GENERATED SERIES. PRESS <ENTER> TO CONTINUE.", 0);
-    cons_tb.print(0, &|text, y| screen.print_ltop(text, y));
+                            if ui
+                                .selectable_label(self.line == i, format!(
+                                    "{}{}",
+                                    if is_selected { "[x] " } else { "[ ] " },
+                                    item.name()
+                                ))
+                                .clicked() {
+                                self.line = i;
+                            }
+                        }
+                    });
 
-    gui::Screen::wait_key('\n');
-    gui::Screen::cls();
+                    ui.horizontal(|ui| {
+                        if ui.button("Select").clicked() {
+                            let current = &self.src_table.body[self.line];
+                            if !self.selected.iter().any(|s| s.equal(current)) {
+                                self.selected.push(current.clone());
+                            }
+                        }
 
-    let mut sets = setter::generate_sets(&cons_tb).unwrap_or(setter::table::Table::empty());
-    sets.to_uniq();
-    sets.filter_series_by_range(0., 100.);
+                        if ui.button("Generate Series").clicked() {
+                            let mut cons_tb = setter::generate_series(&self.selected).unwrap_or_else(setter::table::Table::empty);
+                            cons_tb.to_uniq();
+                            cons_tb.sort_series();
+                            cons_tb.filter_series_by_range(0., 100.);
+                            self.result_table = Some(cons_tb);
+                            self.mode = AppMode::Result;
+                        }
+                    });
+                }
 
-    screen.print_top("POSSIBLE SETS. PRESS <ENTER> TO EXIT AND SAVE. <q> TO EXIT.", 0);
-    sets.print(0, &|text, y| screen.print_ltop(text, y));
-    gui::Screen::refresh_gui();
+                AppMode::Result => {
+                    ui.heading("Generated Series");
+                    if let Some(tb) = &self.result_table {
+                        for s in &tb.body {
+                            ui.label(s.name());
+                        }
 
-    gui::Screen::kill_gui();
+                        if ui.button("Generate Sets").clicked() {
+                            let sets = setter::generate_sets(tb).unwrap_or_else(setter::table::Table::empty);
+                            self.sets_table = Some(sets);
+                            self.mode = AppMode::Final;
+                        }
+                    }
+                }
+
+                AppMode::Final => {
+                    ui.heading("Possible Sets");
+                    if let Some(tb) = &self.sets_table {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            for s in &tb.body {
+                                ui.label(s.name());
+                            }
+                        });
+                    }
+
+                    if ui.button("Exit").clicked() {
+                        std::process::exit(0);
+                    }
+                }
+            }
+        });
+    }
+}
+
+fn main() -> Result<(), eframe::Error> {
+    let options = eframe::NativeOptions {
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "Setter",
+        options,
+        Box::new(|_cc: &CreationContext| Box::new(SetterApp::default())),
+    )
 }

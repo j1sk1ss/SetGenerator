@@ -6,8 +6,8 @@ fn fequal(f: f64, s: f64) -> bool {
     return (f - s).abs() < EPSILON;
 }
 
-pub fn find_possible_end(series: &series::Series, value: f64) -> bool {
-    for i in 0..series.series.len() {
+fn is_possible_end(series: &series::Series, value: f64) -> bool {
+    for i in 1..series.series.len() {
         if fequal(series.series[i], series.gradation + value) {
             return true;
         }
@@ -30,9 +30,8 @@ pub fn generate_series(src: &[series::Series]) -> Option<table::Table> {
         let next: &series::Series = &src[i + 1];
 
         for j in 1..curr.series.len() {
-            if find_possible_end(next, curr.series[j]) {
-                let mut possible = series::Series::new(j + 1, curr.gradation);
-                possible.series.clone_from(&curr.series);
+            if is_possible_end(next, curr.series[j]) {
+                let possible = series::Series::from_vec((j + 1) as f64, curr.series[..j].to_vec());
                 table.add_series(possible);
             }
         }
@@ -69,7 +68,7 @@ pub fn separate_table_by_grad(t: &table::Table) -> Option<Vec<table::Table>> {
 }
 
 pub fn generate_sets(possible_series: &table::Table) -> Option<table::Table> {
-    let mut grad_tables = separate_table_by_grad(possible_series)?;
+    let grad_tables = separate_table_by_grad(possible_series)?;
     let series_counts: Vec<usize> = grad_tables.iter().map(|t: &table::Table| t.body.len()).collect();
     if series_counts.iter().any(|&count| count == 0) {
         return None;
