@@ -76,8 +76,7 @@ impl App for SetterApp {
                         }
                     
                         if ui.button("Generate Series").clicked() {
-                            let mut cons_tb = setter::generate_series(&self.selected)
-                                .unwrap_or_else(setter::table::Table::empty);
+                            let mut cons_tb: setter::table::Table = setter::generate_series(&self.selected);
                             cons_tb.to_uniq();
                             self.result_table = Some(cons_tb);
                             self.mode = AppMode::Result;

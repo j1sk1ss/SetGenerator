@@ -16,9 +16,30 @@ fn is_possible_end(series: &series::Series, value: f64) -> bool {
     return false;
 }
 
-pub fn generate_series(src: &[series::Series]) -> Option<table::Table> {
+fn is_valid_possibles(tb: &table::Table) -> bool {
+    for i in 0..(tb.body.len() - 1) {
+        let mut found_any: bool;
+        let curr: &series::Series = &tb.body[i];
+        let next: &series::Series = &tb.body[i + 1];
+
+        found_any = false;
+        for j in 1..curr.series.len() {
+            if is_possible_end(next, curr.series[j]) {
+                found_any = true;
+            }
+        }
+
+        if !found_any {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+pub fn generate_series(src: &[series::Series]) -> table::Table {
     if src.is_empty() {
-        return None;
+        return table::Table::empty();
     }
 
     println!("[DEBUG] generate_series()");
@@ -29,19 +50,32 @@ pub fn generate_series(src: &[series::Series]) -> Option<table::Table> {
     let mut table: table::Table = table::Table::new(vec![]);
     table.add_series(series::Series::from_series(&src[0]));
 
+    let mut found_any: bool;
     for i in 1..(src.len() - 1) {
         let curr: &series::Series = &src[i];
         let next: &series::Series = &src[i + 1];
+
+        found_any = false;
         for j in 1..curr.series.len() {
             if is_possible_end(next, curr.series[j]) {
+                found_any = true;
                 let possible: series::Series = series::Series::from_vec(curr.gradation, curr.series[..j].to_vec());
                 table.add_series(possible);
             }
         }
+
+        if !found_any {
+            println!("[WARN] No series end found! curr.grad={}, next.grad={}", curr.gradation, next.gradation);
+        }
     }
 
     table.add_series(series::Series::from_series(&src[src.len() - 1]));
-    return Some(table);
+    if is_valid_possibles(&table) {
+        return table;
+    }
+    else {
+        return table::Table::empty();
+    }
 }
 
 pub fn separate_table_by_grad(t: &table::Table) -> Option<Vec<table::Table>> {
