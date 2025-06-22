@@ -37,6 +37,7 @@ impl Table {
     }
 
     pub fn add_series(&mut self, series: series::Series) -> bool {
+        println!("[DEBUG] add_series(series.grad={} series.len()={})", series.gradation, series.series.len());
         self.body.push(series);
         return true;
     }

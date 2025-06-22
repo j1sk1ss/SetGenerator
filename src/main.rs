@@ -49,37 +49,40 @@ impl App for SetterApp {
                     ui.heading("Select Gradations");
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for (i, item) in self.src_table.body.iter().enumerate() {
-                            let is_selected = self.selected.iter().any(|s| s.equal(item));
-
-                            if ui
-                                .selectable_label(self.line == i, format!(
+                            let is_selected: bool = self.selected.iter().any(|s| s.equal(item));
+                            if ui.selectable_label(self.line == i, format!(
                                     "{}{}",
                                     if is_selected { "[x] " } else { "[ ] " },
                                     item.name()
-                                ))
-                                .clicked() {
+                                )).clicked() {
                                 self.line = i;
                             }
                         }
                     });
 
                     ui.horizontal(|ui| {
-                        if ui.button("Select").clicked() {
-                            let current = &self.src_table.body[self.line];
-                            if !self.selected.iter().any(|s| s.equal(current)) {
+                        let current = &self.src_table.body[self.line];
+                        let is_already_selected = self.selected.iter().any(|s| s.equal(current));
+                    
+                        if is_already_selected {
+                            if ui.button("Unselect").clicked() {
+                                self.selected.retain(|s| !s.equal(current));
+                            }
+                        } 
+                        else {
+                            if ui.button("Select").clicked() {
                                 self.selected.push(current.clone());
                             }
                         }
-
+                    
                         if ui.button("Generate Series").clicked() {
-                            let mut cons_tb = setter::generate_series(&self.selected).unwrap_or_else(setter::table::Table::empty);
+                            let mut cons_tb = setter::generate_series(&self.selected)
+                                .unwrap_or_else(setter::table::Table::empty);
                             cons_tb.to_uniq();
-                            cons_tb.sort_series();
-                            cons_tb.filter_series_by_range(0., 100.);
                             self.result_table = Some(cons_tb);
                             self.mode = AppMode::Result;
                         }
-                    });
+                    });                    
                 }
 
                 AppMode::Result => {
@@ -90,7 +93,9 @@ impl App for SetterApp {
                         }
 
                         if ui.button("Generate Sets").clicked() {
-                            let sets = setter::generate_sets(tb).unwrap_or_else(setter::table::Table::empty);
+                            let mut sets: setter::table::Table = setter::generate_sets(tb).unwrap_or_else(setter::table::Table::empty);
+                            sets.sort_series();
+                            sets.filter_series_by_range(0., 100.);
                             self.sets_table = Some(sets);
                             self.mode = AppMode::Final;
                         }
@@ -117,7 +122,7 @@ impl App for SetterApp {
 }
 
 fn main() -> Result<(), eframe::Error> {
-    let options = eframe::NativeOptions {
+    let options: eframe::NativeOptions = eframe::NativeOptions {
         ..Default::default()
     };
 

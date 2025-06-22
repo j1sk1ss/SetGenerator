@@ -21,23 +21,22 @@ pub fn generate_series(src: &[series::Series]) -> Option<table::Table> {
         return None;
     }
 
+    println!("[DEBUG] generate_series()");
+    for i in src {
+        println!("[DEBUG] series.len()={}, series.grad={}", i.series.len(), i.gradation);
+    }
+
     let mut table: table::Table = table::Table::new(vec![]);
     table.add_series(series::Series::from_series(&src[0]));
 
     for i in 1..(src.len() - 1) {
-        let prev_count: usize = table.body.len();
         let curr: &series::Series = &src[i];
         let next: &series::Series = &src[i + 1];
-
         for j in 1..curr.series.len() {
             if is_possible_end(next, curr.series[j]) {
-                let possible = series::Series::from_vec((j + 1) as f64, curr.series[..j].to_vec());
+                let possible: series::Series = series::Series::from_vec(curr.gradation, curr.series[..j].to_vec());
                 table.add_series(possible);
             }
-        }
-
-        if table.body.len() == prev_count {
-            return None;
         }
     }
 
@@ -68,28 +67,28 @@ pub fn separate_table_by_grad(t: &table::Table) -> Option<Vec<table::Table>> {
 }
 
 pub fn generate_sets(possible_series: &table::Table) -> Option<table::Table> {
-    let grad_tables = separate_table_by_grad(possible_series)?;
+    let sep_tables: Option<Vec<table::Table>> = separate_table_by_grad(possible_series);
+    if sep_tables.is_none() {
+        return None;
+    }
+
+    println!("[DEBUG] sep_tables.len()={}", sep_tables.as_ref().unwrap().len());
+    let grad_tables: Vec<table::Table> = sep_tables.unwrap();
     let series_counts: Vec<usize> = grad_tables.iter().map(|t: &table::Table| t.body.len()).collect();
     if series_counts.iter().any(|&count| count == 0) {
         return None;
     }
 
     let total_combinations: usize = series_counts.iter().product();
-    let mut result = table::Table { body: Vec::with_capacity(total_combinations) };
-    let mut indices = vec![0usize; grad_tables.len()];
+    let mut result: table::Table = table::Table::new(Vec::with_capacity(total_combinations));
+    let mut indices: Vec<usize> = vec![0usize; grad_tables.len()];
+    println!("[DEBUG] total_combinations={}", total_combinations);
 
     for _ in 0..total_combinations {
-        let total_values: usize = indices.iter().enumerate()
-            .map(|(i, &idx)| grad_tables[i].body[idx].series.len())
-            .sum();
-
-        let mut new_series = series::Series {
-            gradation: 0.0,
-            series: Vec::with_capacity(total_values),
-        };
-
+        let total_values: usize = indices.iter().enumerate().map(|(i, &idx)| grad_tables[i].body[idx].series.len()).sum();
+        let mut new_series: series::Series = series::Series::from_vec(0., Vec::with_capacity(total_values));
         for (i, &idx) in indices.iter().enumerate() {
-            let s = &grad_tables[i].body[idx];
+            let s: &series::Series = &grad_tables[i].body[idx];
             new_series.series.extend_from_slice(&s.series);
         }
 
@@ -105,5 +104,6 @@ pub fn generate_sets(possible_series: &table::Table) -> Option<table::Table> {
         }
     }
 
+    println!("[DEBUG] Result table series count: {}", result.body.len());
     return Some(result);
 }

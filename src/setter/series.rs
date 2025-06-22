@@ -14,7 +14,7 @@ impl Series {
 
     pub fn from_vec(gradation: f64, series: Vec<f64>) -> Series {
         return Series {
-            gradation,
+            gradation: gradation,
             series: series
         };
     }
