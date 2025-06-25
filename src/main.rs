@@ -103,18 +103,36 @@ impl App for SetterApp {
 
                 AppMode::Final => {
                     ui.heading("Possible Sets");
+                
                     if let Some(tb) = &self.sets_table {
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            for s in &tb.body {
-                                ui.label(s.name());
-                            }
+                        egui::ScrollArea::both().show(ui, |ui| {
+                            egui::Grid::new("sets_table_grid")
+                                .striped(true)
+                                .show(ui, |ui| {
+                                    ui.label("#");
+                                    ui.label("Count");
+                                    ui.label("Values");
+                                    ui.end_row();
+                
+                                    for (i, s) in tb.body.iter().enumerate() {
+                                        let values: String = s.series.iter()
+                                            .map(|v| format!("{:.3}", v))
+                                            .collect::<Vec<_>>()
+                                            .join(" ");
+                
+                                        ui.label((i + 1).to_string());
+                                        ui.label(s.series.len().to_string());
+                                        ui.label(values);
+                                        ui.end_row();
+                                    }
+                                });
                         });
                     }
-
+                
                     if ui.button("Exit").clicked() {
                         std::process::exit(0);
                     }
-                }
+                }                       
             }
         });
     }
