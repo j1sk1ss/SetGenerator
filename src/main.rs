@@ -1,3 +1,4 @@
+/* rustup run stable cargo rustc --release --target=x86_64-pc-windows-gnu -- -C linker=x86_64-w64-mingw32-gcc */
 use eframe::{egui, App, CreationContext, Frame};
 mod setter;
 
@@ -129,10 +130,38 @@ impl App for SetterApp {
                         });
                     }
                 
+                    if ui.button("Start Over").clicked() {
+                        self.mode = AppMode::Welcome;
+                        self.selected.clear();
+                        self.result_table = None;
+                        self.sets_table = None;
+                        self.line = 0;
+                    }
+
+                    if ui.button("Save as CSV").clicked() {
+                        if let Some(tb) = &self.sets_table {
+                            if let Some(path) = rfd::FileDialog::new()
+                                .set_title("Save CSV file")
+                                .set_directory(".")
+                                .set_file_name("output.csv")
+                                .save_file()
+                            {
+                                match tb.save_table_as_csv(path.to_str().unwrap()) {
+                                    Ok(_) => {
+                                        println!("Saved to {}", path.display());
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to save: {}", e);
+                                    }
+                                }
+                            }
+                        }
+                    }                    
+                
                     if ui.button("Exit").clicked() {
                         std::process::exit(0);
                     }
-                }                       
+                }                                     
             }
         });
     }

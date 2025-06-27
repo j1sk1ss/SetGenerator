@@ -1,6 +1,9 @@
 use super::fequal;
 use super::series;
 
+use std::fs::File;
+use std::io::{Write, BufWriter};
+
 pub struct Table {
     pub body: Vec<series::Series>
 }
@@ -18,9 +21,9 @@ impl Default for Table {
                 series::Series::from_vec(5.0, vec![5., 10., 15., 20., 25., 30.]),
                 series::Series::from_vec(10.0, (1..=10).map(|i| i as f64 * 10.0).collect()),
                 series::Series::from_vec(25.0, vec![25., 50., 75., 100.]),
-            ],
-        }
-    }
+            ]
+        };
+    }    
 }
 
 impl Table {
@@ -99,5 +102,22 @@ impl Table {
         });
     
         return true;
+    }
+
+    pub fn save_table_as_csv(&self, path: &str) -> std::io::Result<()> {
+        let file = File::create(path)?;
+        let mut writer = BufWriter::new(file);
+        writeln!(writer, "#,Count,Values")?;
+    
+        for (i, s) in self.body.iter().enumerate() {
+            let values = s.series.iter()
+                .map(|v| format!("{:.3}", v))
+                .collect::<Vec<_>>()
+                .join(" ");
+            writeln!(writer, "{},{},\"{}\"", i + 1, s.series.len(), values)?;
+        }
+
+        writer.flush()?;
+        Ok(())
     }
 }
