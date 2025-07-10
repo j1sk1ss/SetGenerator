@@ -38,25 +38,39 @@ impl App for SetterApp {
             match self.mode {
                 AppMode::Welcome => {
                     ui.vertical_centered(|ui| {
-                        ui.heading("Welcome!");
-                        ui.label("Press below button to continue...");
-                        if ui.button("Continue").clicked() {
+                        ui.heading("Добро пожаловать!");
+                        ui.label("Нажмите кнопку ниже, чтобы продолжить...");
+                        if ui.button("Продолжить").clicked() {
                             self.mode = AppMode::Selection;
                         }
                     });
                 }
 
                 AppMode::Selection => {
-                    ui.heading("Select Gradations");
+                    ui.heading("Выберите градации");
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for (i, item) in self.src_table.body.iter().enumerate() {
                             let is_selected: bool = self.selected.iter().any(|s| s.equal(item));
-                            if ui.selectable_label(self.line == i, format!(
+                            let response = ui.selectable_label(
+                                self.line == i, 
+                                format!(
                                     "{}{}",
                                     if is_selected { "[x] " } else { "[ ] " },
                                     item.name()
-                                )).clicked() {
+                                )
+                            );
+                            
+                            if response.clicked() {
                                 self.line = i;
+                            }
+                            
+                            if response.double_clicked() {
+                                self.line = i;
+                                if is_selected {
+                                    self.selected.retain(|s| !s.equal(item));
+                                } else {
+                                    self.selected.push(item.clone());
+                                }
                             }
                         }
                     });
@@ -66,17 +80,17 @@ impl App for SetterApp {
                         let is_already_selected = self.selected.iter().any(|s| s.equal(current));
                     
                         if is_already_selected {
-                            if ui.button("Unselect").clicked() {
+                            if ui.button("Снять выбор").clicked() {
                                 self.selected.retain(|s| !s.equal(current));
                             }
                         } 
                         else {
-                            if ui.button("Select").clicked() {
+                            if ui.button("Выбрать").clicked() {
                                 self.selected.push(current.clone());
                             }
                         }
                     
-                        if ui.button("Generate Series").clicked() {
+                        if ui.button("Сгенерировать серии").clicked() {
                             let mut cons_tb: setter::table::Table = setter::generate_series(&self.selected);
                             cons_tb.to_uniq();
                             self.result_table = Some(cons_tb);
@@ -86,13 +100,15 @@ impl App for SetterApp {
                 }
 
                 AppMode::Result => {
-                    ui.heading("Generated Series");
+                    ui.heading("Сгенерированные серии");
                     if let Some(tb) = &self.result_table {
-                        for s in &tb.body {
-                            ui.label(s.name());
-                        }
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            for s in &tb.body {
+                                ui.label(s.name());
+                            }
+                        });
 
-                        if ui.button("Generate Sets").clicked() {
+                        if ui.button("Сгенерировать наборы").clicked() {
                             let mut sets: setter::table::Table = setter::generate_sets(tb).unwrap_or_else(setter::table::Table::empty);
                             sets.sort_series();
                             sets.filter_series_by_range(0., 100.);
@@ -103,16 +119,49 @@ impl App for SetterApp {
                 }
 
                 AppMode::Final => {
-                    ui.heading("Possible Sets");
-                
+                    ui.heading("Возможные наборы");
+                    ui.horizontal(|ui| {
+                        if ui.button("Начать заново").clicked() {
+                            self.mode = AppMode::Welcome;
+                            self.selected.clear();
+                            self.result_table = None;
+                            self.sets_table = None;
+                            self.line = 0;
+                        }
+
+                        if ui.button("Сохранить в Word").clicked() {
+                            if let Some(tb) = &self.sets_table {
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .set_title("Сохранить файл Word")
+                                    .set_directory(".")
+                                    .set_file_name("наборы.rtf")
+                                    .save_file()
+                                {
+                                    match tb.save_table_as_rtf(path.to_str().unwrap()) {
+                                        Ok(_) => {
+                                            println!("Файл сохранен: {}", path.display());
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Ошибка сохранения: {}", e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    
+                        if ui.button("Выход").clicked() {
+                            std::process::exit(0);
+                        }
+                    });
+
                     if let Some(tb) = &self.sets_table {
                         egui::ScrollArea::both().show(ui, |ui| {
                             egui::Grid::new("sets_table_grid")
                                 .striped(true)
                                 .show(ui, |ui| {
-                                    ui.label("#");
-                                    ui.label("Count");
-                                    ui.label("Values");
+                                    ui.label("№");
+                                    ui.label("Количество");
+                                    ui.label("Значения");
                                     ui.end_row();
                 
                                     for (i, s) in tb.body.iter().enumerate() {
@@ -129,38 +178,6 @@ impl App for SetterApp {
                                 });
                         });
                     }
-                
-                    if ui.button("Start Over").clicked() {
-                        self.mode = AppMode::Welcome;
-                        self.selected.clear();
-                        self.result_table = None;
-                        self.sets_table = None;
-                        self.line = 0;
-                    }
-
-                    if ui.button("Save as CSV").clicked() {
-                        if let Some(tb) = &self.sets_table {
-                            if let Some(path) = rfd::FileDialog::new()
-                                .set_title("Save CSV file")
-                                .set_directory(".")
-                                .set_file_name("output.csv")
-                                .save_file()
-                            {
-                                match tb.save_table_as_csv(path.to_str().unwrap()) {
-                                    Ok(_) => {
-                                        println!("Saved to {}", path.display());
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to save: {}", e);
-                                    }
-                                }
-                            }
-                        }
-                    }                    
-                
-                    if ui.button("Exit").clicked() {
-                        std::process::exit(0);
-                    }
                 }                                     
             }
         });
@@ -175,6 +192,8 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "Setter",
         options,
-        Box::new(|_cc: &CreationContext| Box::new(SetterApp::default())),
+        Box::new(|_cc: &CreationContext| {
+            Box::new(SetterApp::default())
+        }),
     )
 }

@@ -1,9 +1,6 @@
 use super::fequal;
 use super::series;
 
-use std::fs::File;
-use std::io::{Write, BufWriter};
-
 pub struct Table {
     pub body: Vec<series::Series>
 }
@@ -104,20 +101,71 @@ impl Table {
         return true;
     }
 
-    pub fn save_table_as_csv(&self, path: &str) -> std::io::Result<()> {
+    pub fn save_table_as_rtf(&self, path: &str) -> std::io::Result<()> {
+        use std::io::{Write, BufWriter};
+        use std::fs::File;
+
+        fn escape_rtf(s: &str) -> String {
+            let mut result = String::new();
+            for c in s.chars() {
+                if c <= '\u{7F}' {
+                    result.push(c);
+                } else {
+                    result.push_str(&format!("\\u{}?", c as i32));
+                }
+            }
+            result
+        }
+
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
-        writeln!(writer, "#,Count,Values")?;
-    
+
+        // RTF header with font table
+        writeln!(writer, r"{{\rtf1\ansi\ansicpg1251")?;
+        writeln!(writer, r"{{\fonttbl {{\f0\fnil\fcharset204 Times New Roman;}}}}")?;
+        writeln!(writer, r"\viewkind4\uc1")?;
+
+        // Table setup
+        let col_widths = [1500, 1500, 6000]; // in twips
+        let mut accum = 0;
+        let mut cellx = String::new();
+        for &w in &col_widths {
+            accum += w;
+            cellx.push_str(&format!(r"\cellx{}", accum));
+        }
+
+        // Table header
+        writeln!(writer, r"\trowd\trqc")?;
+        writer.write_all(cellx.as_bytes())?;
+        writeln!(
+            writer,
+            r"\intbl\b\f0\fs24 {}\cell {}\cell {}\cell\row",
+            escape_rtf("№"),
+            escape_rtf("Количество"),
+            escape_rtf("Значения")
+        )?;
+
+        // Table rows
         for (i, s) in self.body.iter().enumerate() {
-            let values = s.series.iter()
+            writeln!(writer, r"\trowd\trqc")?;
+            writer.write_all(cellx.as_bytes())?;
+            
+            let values: String = s.series.iter()
                 .map(|v| format!("{:.3}", v))
                 .collect::<Vec<_>>()
                 .join(" ");
-            writeln!(writer, "{},{},\"{}\"", i + 1, s.series.len(), values)?;
+            
+            writeln!(
+                writer,
+                r"\intbl\f0\fs22 {}\cell {}\cell {}\cell\row",
+                i + 1,
+                s.series.len(),
+                values
+            )?;
         }
 
+        writeln!(writer, r"}}")?;
         writer.flush()?;
-        Ok(())
+        return Ok(());
     }
 }
