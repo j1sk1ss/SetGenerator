@@ -1,5 +1,6 @@
 /* rustup run stable cargo rustc --release --target=x86_64-pc-windows-gnu -- -C linker=x86_64-w64-mingw32-gcc */
 use eframe::{egui, App, CreationContext, Frame};
+use chrono;
 mod setter;
 
 struct SetterApp {
@@ -131,10 +132,13 @@ impl App for SetterApp {
 
                         if ui.button("Сохранить в Word").clicked() {
                             if let Some(tb) = &self.sets_table {
+                                let now: chrono::DateTime<chrono::Local> = chrono::Local::now();
+                                let filename: String = format!("наборы_{}.rtf", now.format("%Y-%m-%d_%H-%M-%S"));
+
                                 if let Some(path) = rfd::FileDialog::new()
                                     .set_title("Сохранить файл Word")
                                     .set_directory(".")
-                                    .set_file_name("наборы.rtf")
+                                    .set_file_name(&filename)
                                     .save_file()
                                 {
                                     match tb.save_table_as_rtf(path.to_str().unwrap()) {
@@ -159,7 +163,7 @@ impl App for SetterApp {
                             egui::Grid::new("sets_table_grid")
                                 .striped(true)
                                 .show(ui, |ui| {
-                                    ui.label("№");
+                                    ui.label("#");
                                     ui.label("Количество");
                                     ui.label("Значения");
                                     ui.end_row();

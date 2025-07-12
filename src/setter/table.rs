@@ -1,5 +1,7 @@
 use super::fequal;
 use super::series;
+use std::fs;
+use std::path;
 
 pub struct Table {
     pub body: Vec<series::Series>
@@ -110,31 +112,34 @@ impl Table {
             for c in s.chars() {
                 if c <= '\u{7F}' {
                     result.push(c);
-                } else {
+                } 
+                else {
                     result.push_str(&format!("\\u{}?", c as i32));
                 }
             }
             result
         }
 
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
+        let dir_path: path::PathBuf = path::Path::new("results").join(path);
+        if let Some(parent) = dir_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
 
-        // RTF header with font table
+        let file: File = File::create(path)?;
+        let mut writer: BufWriter<File> = BufWriter::new(file);
+
         writeln!(writer, r"{{\rtf1\ansi\ansicpg1251")?;
         writeln!(writer, r"{{\fonttbl {{\f0\fnil\fcharset204 Times New Roman;}}}}")?;
         writeln!(writer, r"\viewkind4\uc1")?;
 
-        // Table setup
-        let col_widths = [1500, 1500, 6000]; // in twips
-        let mut accum = 0;
-        let mut cellx = String::new();
+        let col_widths: [i32; 3] = [ 1500, 1500, 6000 ];
+        let mut accum: i32 = 0;
+        let mut cellx: String = String::new();
         for &w in &col_widths {
             accum += w;
             cellx.push_str(&format!(r"\cellx{}", accum));
         }
 
-        // Table header
         writeln!(writer, r"\trowd\trqc")?;
         writer.write_all(cellx.as_bytes())?;
         writeln!(
@@ -145,7 +150,6 @@ impl Table {
             escape_rtf("Значения")
         )?;
 
-        // Table rows
         for (i, s) in self.body.iter().enumerate() {
             writeln!(writer, r"\trowd\trqc")?;
             writer.write_all(cellx.as_bytes())?;
