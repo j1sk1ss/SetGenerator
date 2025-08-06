@@ -10,11 +10,11 @@ struct SetterApp {
     mode: AppMode,
     result_table: Option<setter::table::Table>,
     sets_table: Option<setter::table::Table>,
+    manual_input: String
 }
 
 #[derive(PartialEq)]
 enum AppMode {
-    Welcome,
     Selection,
     Result,
     Final,
@@ -26,9 +26,10 @@ impl Default for SetterApp {
             line: 0,
             selected: vec![],
             src_table: setter::table::Table::default(),
-            mode: AppMode::Welcome,
+            mode: AppMode::Selection,
             result_table: None,
             sets_table: None,
+            manual_input: String::new()
         }
     }
 }
@@ -37,34 +38,45 @@ impl App for SetterApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             match self.mode {
-                AppMode::Welcome => {
-                    ui.vertical_centered(|ui| {
-                        ui.heading("Добро пожаловать!");
-                        ui.label("Нажмите кнопку ниже, чтобы продолжить...");
-                        if ui.button("Продолжить").clicked() {
-                            self.mode = AppMode::Selection;
-                        }
-                    });
-                }
-
                 AppMode::Selection => {
                     ui.heading("Выберите градации");
+                
+                    let mut manual_input = self.manual_input.clone();
+                    ui.horizontal(|ui| {
+                        ui.label("Ввести градации:");
+                        if ui.text_edit_singleline(&mut manual_input).changed() {
+                            self.manual_input = manual_input.clone();
+                        }
+
+                        if ui.button("Выбрать вручную").clicked() {
+                            let names: Vec<&str> = manual_input.split_whitespace().collect();
+                            self.selected.clear();
+                            for name in names {
+                                if let Some(item) = self.src_table.body.iter().find(|i| i.gradation == name.parse::<f64>().unwrap()) {
+                                    if !self.selected.iter().any(|s| s.equal(item)) {
+                                        self.selected.push(item.clone());
+                                    }
+                                }
+                            }
+                        }
+                    });
+                
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         for (i, item) in self.src_table.body.iter().enumerate() {
                             let is_selected: bool = self.selected.iter().any(|s| s.equal(item));
                             let response = ui.selectable_label(
-                                self.line == i, 
+                                self.line == i,
                                 format!(
                                     "{}{}",
                                     if is_selected { "[x] " } else { "[ ] " },
                                     item.name()
                                 )
                             );
-                            
+                
                             if response.clicked() {
                                 self.line = i;
                             }
-                            
+                
                             if response.double_clicked() {
                                 self.line = i;
                                 if is_selected {
@@ -75,30 +87,29 @@ impl App for SetterApp {
                             }
                         }
                     });
-
+                
                     ui.horizontal(|ui| {
                         let current = &self.src_table.body[self.line];
                         let is_already_selected = self.selected.iter().any(|s| s.equal(current));
-                    
+                
                         if is_already_selected {
                             if ui.button("Снять выбор").clicked() {
                                 self.selected.retain(|s| !s.equal(current));
                             }
-                        } 
-                        else {
+                        } else {
                             if ui.button("Выбрать").clicked() {
                                 self.selected.push(current.clone());
                             }
                         }
-                    
+                
                         if ui.button("Сгенерировать серии").clicked() {
                             let mut cons_tb: setter::table::Table = setter::generate_series(&self.selected);
                             cons_tb.to_uniq();
                             self.result_table = Some(cons_tb);
                             self.mode = AppMode::Result;
                         }
-                    });                    
-                }
+                    });
+                }                
 
                 AppMode::Result => {
                     ui.heading("Сгенерированные серии");
@@ -123,7 +134,7 @@ impl App for SetterApp {
                     ui.heading("Возможные наборы");
                     ui.horizontal(|ui| {
                         if ui.button("Начать заново").clicked() {
-                            self.mode = AppMode::Welcome;
+                            self.mode = AppMode::Selection;
                             self.selected.clear();
                             self.result_table = None;
                             self.sets_table = None;

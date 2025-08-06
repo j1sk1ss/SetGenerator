@@ -38,7 +38,7 @@ pub fn generate_series(src: &[series::Series]) -> table::Table {
         for j in 1..curr.series.len() {
             if is_possible_end(next, curr.series[j]) {
                 found_any = true;
-                let possible: series::Series = series::Series::from_vec(curr.gradation, curr.series[..j].to_vec());
+                let possible: series::Series = series::Series::from_vec(curr.gradation, curr.series[..=j].to_vec());
                 table.add_series(possible);
             }
         }
