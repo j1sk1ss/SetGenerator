@@ -10,7 +10,9 @@ struct SetterApp {
     mode: AppMode,
     result_table: Option<setter::table::Table>,
     sets_table: Option<setter::table::Table>,
-    manual_input: String
+    manual_input: String,
+    min: f64,
+    max: f64
 }
 
 #[derive(PartialEq)]
@@ -29,7 +31,9 @@ impl Default for SetterApp {
             mode: AppMode::Selection,
             result_table: None,
             sets_table: None,
-            manual_input: String::new()
+            manual_input: String::new(),
+            min: 0f64,
+            max: 100f64
         }
     }
 }
@@ -43,10 +47,20 @@ impl App for SetterApp {
                 
                     let mut manual_input = self.manual_input.clone();
                     ui.horizontal(|ui| {
-                        ui.label("Ввести градации:");
-                        if ui.text_edit_singleline(&mut manual_input).changed() {
-                            self.manual_input = manual_input.clone();
-                        }
+                        ui.horizontal(|ui| {
+                            ui.label("Ввести градации:");
+                            if ui.text_edit_singleline(&mut manual_input).changed() {
+                                self.manual_input = manual_input.clone();
+                            }
+                        });
+                        
+                        ui.horizontal(|ui| {
+                            ui.label("Минимум:");
+                            ui.add(egui::DragValue::new(&mut self.min).speed(0.1));
+                        
+                            ui.label("Максимум:");
+                            ui.add(egui::DragValue::new(&mut self.max).speed(0.1));
+                        });                        
 
                         if ui.button("Выбрать вручную").clicked() {
                             let names: Vec<&str> = manual_input.split_whitespace().collect();
@@ -123,7 +137,7 @@ impl App for SetterApp {
                         if ui.button("Сгенерировать наборы").clicked() {
                             let mut sets: setter::table::Table = setter::generate_sets(tb).unwrap_or_else(setter::table::Table::empty);
                             sets.sort_series();
-                            sets.filter_series_by_range(0., 100.);
+                            sets.filter_series_by_range(self.min, self.max);
                             self.sets_table = Some(sets);
                             self.mode = AppMode::Final;
                         }
