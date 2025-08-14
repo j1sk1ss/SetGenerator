@@ -6,9 +6,6 @@ fn fequal(f: f64, s: f64) -> bool {
     return (f - s).abs() < EPSILON;
 }
 
-/*
-Main problem here: Next series are not cut by possible start
-*/
 fn is_possible_end(series: &series::Series, value: f64) -> i32 {
     for i in 1..series.series.len() {
         if fequal(series.series[i], series.gradation + value) {
@@ -98,14 +95,36 @@ pub fn generate_sets(possible_series: &table::Table) -> Option<table::Table> {
     println!("[DEBUG] total_combinations={}", total_combinations);
 
     for _ in 0..total_combinations {
-        let total_values: usize = indices.iter().enumerate().map(|(i, &idx)| grad_tables[i].body[idx].series.len()).sum();
-        let mut new_series: series::Series = series::Series::from_vec(0., Vec::with_capacity(total_values));
+        let mut valid = true;
+        let total_values: usize = indices.iter().enumerate()
+            .map(|(i, &idx)| grad_tables[i].body[idx].series.len())
+            .sum();
+    
+        let mut nseries: series::Series = series::Series::from_vec(0., Vec::with_capacity(total_values));
+        let mut max_prev: Option<f64> = None;
+    
         for (i, &idx) in indices.iter().enumerate() {
             let s: &series::Series = &grad_tables[i].body[idx];
-            new_series.series.extend_from_slice(&s.series);
+            let mut slice = &s.series[..];
+    
+            if let Some(maxv) = max_prev {
+                let cut_pos = slice.iter().position(|&x| x >= maxv).unwrap_or(slice.len());
+                slice = &slice[cut_pos..];
+            }
+    
+            if slice.is_empty() {
+                valid = false;
+                break;
+            }
+    
+            nseries.series.extend_from_slice(slice);
+            max_prev = Some(slice.iter().cloned().fold(f64::NEG_INFINITY, f64::max));
         }
-
-        result.body.push(new_series);
+    
+        if valid {
+            result.body.push(nseries);
+        }
+    
         for i in (0..indices.len()).rev() {
             indices[i] += 1;
             if indices[i] < series_counts[i] {
@@ -115,7 +134,7 @@ pub fn generate_sets(possible_series: &table::Table) -> Option<table::Table> {
                 indices[i] = 0;
             }
         }
-    }
+    }    
 
     println!("[DEBUG] Result table series count: {}", result.body.len());
     return Some(result);
