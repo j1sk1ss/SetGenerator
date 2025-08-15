@@ -100,8 +100,12 @@ impl Table {
             !series.series.iter().any(|&v| v < min || v > max)
         });
     
+        for series in &mut self.body {
+            series.series.insert(0, min);
+        }
+    
         return true;
-    }
+    }    
 
     pub fn save_table_as_rtf(&self, path: &str) -> std::io::Result<()> {
         use std::io::{Write, BufWriter};

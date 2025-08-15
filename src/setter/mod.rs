@@ -29,7 +29,6 @@ pub fn generate_series(src: &[series::Series]) -> table::Table {
     let mut table: table::Table = table::Table::new(vec![]);
     table.add_series(series::Series::from_series(&src[0]));
 
-    let mut st: i32 = 0;
     let mut found_any: bool;
     for i in 1..(src.len() - 1) {
         let curr: &series::Series = &src[i];
@@ -37,8 +36,7 @@ pub fn generate_series(src: &[series::Series]) -> table::Table {
 
         found_any = false;
         for j in 1..curr.series.len() {
-            st = is_possible_end(next, curr.series[j]);
-            if st > 0 {
+            if is_possible_end(next, curr.series[j]) >= 0 {
                 found_any = true;
                 table.add_series(series::Series::from_vec(curr.gradation, curr.series[..=j].to_vec()));
             }
