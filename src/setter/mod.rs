@@ -1,6 +1,9 @@
 pub mod series;
 pub mod table;
 
+use std::collections::HashSet;
+use ordered_float::OrderedFloat;
+
 const EPSILON: f64 = 1e-9;
 fn fequal(f: f64, s: f64) -> bool {
     return (f - s).abs() < EPSILON;
@@ -134,6 +137,14 @@ pub fn generate_sets(possible_series: &table::Table) -> Option<table::Table> {
         }
     }    
 
-    println!("[DEBUG] Result table series count: {}", result.body.len());
+    println!("[DEBUG] Result table series count (before dedup): {}", result.body.len());
+
+    let mut seen: HashSet<Vec<OrderedFloat<f64>>> = HashSet::new();
+    result.body.retain(|s| {
+        let wrapped: Vec<OrderedFloat<f64>> = s.series.iter().cloned().map(OrderedFloat).collect();
+        seen.insert(wrapped)
+    });
+
+    println!("[DEBUG] Result table series count (after dedup): {}", result.body.len());
     return Some(result);
 }
