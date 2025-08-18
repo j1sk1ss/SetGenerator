@@ -101,7 +101,7 @@ impl Table {
         });
     
         for series in &mut self.body {
-            if series.series[0] != min {
+            if series.series[0] != min && min != 0. {
                 series.series.insert(0, min);
             }
         }
